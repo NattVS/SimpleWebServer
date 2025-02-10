@@ -29,70 +29,84 @@ final class SolicitudHttp implements Runnable {
     public void procesarSolicitud() throws Exception {
         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
-    
+
         String lineaDeLaSolicitudHttp = in.readLine();
-        System.out.println("Solictud: " + lineaDeLaSolicitudHttp);
+        System.out.println("Solicitud: " + lineaDeLaSolicitudHttp);
+        
         StringTokenizer partesSolicitud = new StringTokenizer(lineaDeLaSolicitudHttp);
         String metodo = partesSolicitud.nextToken();
         String archivo = partesSolicitud.nextToken();
-        
+
         System.out.println("Método: " + metodo);
         System.out.println("Archivo: " + archivo);
-    
+
+        if (archivo.equals("/")) {
+            archivo = "/landingPage.html";
+        }
+
         File file = new File("src\\main\\resources" + archivo);
 
-        if (file.isDirectory()) { 
-            file = new File("src\\main\\resources/landingPage.html"); // Usa un archivo por defecto
+        InputStream inputStream = null;
+        if (file.exists() && file.isFile()) {
+            inputStream = new FileInputStream(file);
+        } else {
+            //Si el archivo no existe, 404
+            file = new File("src\\main\\resources\\404.html");
+            if (file.exists() && file.isFile()) {
+                inputStream = new FileInputStream(file);
+            } else {
+                //404 manual x si acaso
+                sendString("HTTP/1.1 404 Not Found" + CRLF, out);
+                sendString("Content-Type: text/html" + CRLF, out);
+                sendString(CRLF, out);
+                sendString("<h1>404 Not Found</h1>", out);
+                out.flush();
+                out.close();
+                in.close();
+                socket.close();
+                return;
+            }
         }
 
-        InputStream inputStream = null;
-        if (file.exists() && file.isFile()) { 
-            inputStream = new FileInputStream(file);
-        }
-    
-        if (inputStream != null) {
-            // 200 OK si el archivo existe
-            enviarString("HTTP/1.1 200 OK" + CRLF, out);
-            enviarString("Content-Type: text/html" + CRLF, out);
-            enviarString(CRLF, out);
-            enviarBytes(inputStream, out);
-            inputStream.close();
-        } else {
-            // 404 Not Found, cargar la página 404.html
-            File errorFile = new File("src\\main\\resources\\404.html");
-            InputStream errorStream = null;
-        
-            if (errorFile.exists()) {
-                errorStream = new FileInputStream(errorFile);
-            }
-        
-            enviarString("HTTP/1.1 404 Not Found" + CRLF, out);
-            enviarString("Content-Type: text/html" + CRLF, out);
-            enviarString(CRLF, out);
-            enviarBytes(errorStream, out);
-            errorStream.close();
-        }
+        //Tipo de contenido y tamaño del archivo
+        String contentType = obtainContentType(file.getName());
+        long fileSize = file.length();
+
+        //Envía cabecera HTTP
+        sendString("HTTP/1.1 200 OK" + CRLF, out);
+        sendString("Content-Type: " + contentType + CRLF, out);
+        sendString("Content-Length: " + fileSize + CRLF, out);
+        sendString(CRLF, out);
+
+        //Envía el contenido dl archivo
+        sendBytes(inputStream, out);
+        inputStream.close();
 
         out.flush();
         out.close();
         in.close();
         socket.close();
     }
-    
 
-    private static void enviarString(String line, OutputStream os) throws Exception {
+    private static void sendString(String line, OutputStream os) throws Exception {
         os.write(line.getBytes(StandardCharsets.UTF_8));
     }
 
-    private static void enviarBytes(InputStream fis, OutputStream os) throws Exception {
-        // Construye un buffer de 1KB para guardar los bytes cuando van hacia el socket.
+    private static void sendBytes(InputStream fis, OutputStream os) throws Exception {
         byte[] buffer = new byte[1024];
         int bytes = 0;
-
-        // Copia el archivo solicitado hacia el output stream del socket.
         while ((bytes = fis.read(buffer)) != -1) {
             os.write(buffer, 0, bytes);
         }
     }
 
+    private static String obtainContentType(String nombreArchivo) {
+        if (nombreArchivo.endsWith(".html")) {
+            return "text/html";}
+        if (nombreArchivo.endsWith(".jpg") || nombreArchivo.endsWith(".jpeg")) {
+            return "image/jpeg";}
+        if (nombreArchivo.endsWith(".gif")) {
+            return "image/gif";}
+        return "application/octet-stream"; //Defectp
+    }
 }

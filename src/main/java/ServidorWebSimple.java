@@ -8,13 +8,14 @@ class ServidorWebSimple {
 
       while (true) {
          
-         // el método accept() de socketdeEscucha craerá un nuevo objeto: socketdeConexion
+         //El método accept() de socketdeEscucha creará un nuevo objeto: socketdeConexion
          Socket socketdeConexion = socketdeEscucha.accept(); 
 
          SolicitudHttp solicitud = new SolicitudHttp(socketdeConexion);
 
          Thread hilo = new Thread(solicitud);
          hilo.start();
+
       }
    }
 }

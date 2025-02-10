@@ -42,7 +42,7 @@ final class SolicitudHttp implements Runnable {
         File file = new File("src\\main\\resources" + archivo);
 
         if (file.isDirectory()) { 
-            file = new File("src\\main\\resources/index.html"); // Usa un archivo por defecto
+            file = new File("src\\main\\resources/landingPage.html"); // Usa un archivo por defecto
         }
 
         InputStream inputStream = null;
@@ -51,18 +51,26 @@ final class SolicitudHttp implements Runnable {
         }
     
         if (inputStream != null) {
-            //200 OK si no es null
+            // 200 OK si el archivo existe
             enviarString("HTTP/1.1 200 OK" + CRLF, out);
             enviarString("Content-Type: text/html" + CRLF, out);
             enviarString(CRLF, out);
             enviarBytes(inputStream, out);
             inputStream.close();
         } else {
-            //404 si es null
+            // 404 Not Found, cargar la página 404.html
+            File errorFile = new File("src\\main\\resources\\404.html");
+            InputStream errorStream = null;
+        
+            if (errorFile.exists()) {
+                errorStream = new FileInputStream(errorFile);
+            }
+        
             enviarString("HTTP/1.1 404 Not Found" + CRLF, out);
             enviarString("Content-Type: text/html" + CRLF, out);
             enviarString(CRLF, out);
-            enviarString("<h1>404 Not Found</h1>", out);
+            enviarBytes(errorStream, out);
+            errorStream.close();
         }
 
         out.flush();
